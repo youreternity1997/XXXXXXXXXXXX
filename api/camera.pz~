@@ -1,0 +1,75 @@
+import cv2, queue, threading, time
+from api.LED import LED
+# bufferless VideoCapture
+class VideoCapture:
+
+    def __init__(self, name, height=720, width=1280):
+        self.cap = None 
+        self.LED0 = LED()
+        self.q = queue.Queue()
+        try:
+            self.cap = cv2.VideoCapture(name)
+            self.cap.set(cv2.CAP_PROP_FOURCC,cv2.VideoWriter_fourcc('M','J','P','G'))
+            #self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 3)
+            #self.cap.set(cv2.CAP_PROP_EXPOSURE, 50)
+            self.setWidth( width)
+            self.setHeight( height)
+            #self.cap.release()
+            #self.cap = None
+        except:
+            print("camera connect error")
+
+    def setWidth(self, width):
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+
+    def setHeight(self, height):
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+    
+    def isOpened(self):
+        return self.cap.isOpened()
+        
+    def open(self, name=0, height=720, width=1280):
+        if self.cap == None:
+            self.cap = cv2.VideoCapture(name)
+            self.cap.set(cv2.CAP_PROP_FOURCC,cv2.VideoWriter_fourcc('M','J','P','G'))
+            self.setWidth( width)
+            self.setHeight( height)
+        self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)
+        self.cap.set(cv2.CAP_PROP_EXPOSURE, 50)
+        self.t2 = threading.Thread(target = self.LED0.LED_blink)
+        self.t2.start()
+        self.t1 = threading.Thread(target = self._reader)
+        self.t1.daemon = True
+        self.t1.start()
+
+    def _reader(self):
+        t = threading.currentThread()
+        while getattr(t, "do_run", True):
+            ret, frame = self.cap.read()
+            if not ret:
+                break
+            if not self.q.empty():
+                try:
+                    self.q.get_nowait()   # discard previous (unprocessed) frame
+                except queue.Empty:
+                    pass
+            self.q.put(frame)
+
+    def read(self):
+        success = True
+        if not self.q.empty():
+            result = self.q.get()
+        else:
+            success = False
+            result = False
+
+        return success, result
+    def release(self):
+        self.t1.do_run = False
+        self.t1.join()
+        self.t2.do_run = False
+        self.t2.join()
+        self.LED0.LED_close()
+        self.cap.release()
+        self.cap = None
+

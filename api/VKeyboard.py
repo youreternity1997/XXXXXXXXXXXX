@@ -11,15 +11,15 @@ import tkinter as tk
 class VKeyboard(tk.Frame):
     def __init__(self, master, entry):
         tk.Frame.__init__(self, master)
-        tk.Frame.configure(self,bg='white') # configure( )：我們使用它來指定應用程式的背景色(白色)。
- 
+        tk.Frame.configure(self,bg='white')
+
         self.entry = entry
         self.entry.pack(pady = 20)
         self.create()
 
     def select(self, entry, value):
         #pyautogui.press(event)
-        global uppercase # 是否大寫
+        global uppercase
         uppercase = False
     
         if value == "Space":
@@ -38,18 +38,16 @@ class VKeyboard(tk.Frame):
         elif value in ('Caps Lock', 'Shift'):
             uppercase = not uppercase # change True to False, or False to True
         elif value =='英':
-            self.kb_num.grid_forget() # 讓數字鍵盤消失
-            self.kb_en.grid() # 佈局方數字鍵盤
+            self.kb_num.grid_forget()
+            self.kb_en.grid()
         elif value =='數':
-            self.kb_en.grid_forget() # 讓英文鍵盤消失
-            self.kb_num.grid() # 佈局數字鍵盤
+            self.kb_en.grid_forget()
+            self.kb_num.grid()
         else:
             if uppercase:
-                value = value.upper() # 小寫 to 大寫
-            entry.insert('end', value) # 將值放進Entry中
+                value = value.upper()
+            entry.insert('end', value)
         return
-    
-    # 創造 數字鍵盤 與 英文鍵盤
     def create(self):
         alphabets_num = [
         ['+','1','2','3'],
@@ -69,12 +67,14 @@ class VKeyboard(tk.Frame):
         self.kb_num = tk.Frame(self)
         self.kb_en = tk.Frame(self)
         for y, row in enumerate(alphabets_num):
+    
             x = 0
+    
             #for x, text in enumerate(row):
             for text in row:
     
                 width = 5
-                columnspan = 1 # columnspan=1 就是表示控制元件以所設定的座標為起點，在X方向上都有1個單元格大小的跨度。
+                columnspan = 1
     
                 tk.Button(self.kb_num, text=text, width=width, 
                           command=lambda value=text: self.select(self.entry, value),
@@ -84,6 +84,7 @@ class VKeyboard(tk.Frame):
                 x+= columnspan    
                 
         for y, row in enumerate(alphabets_en):
+    
             x = 0
     
             #for x, text in enumerate(row):

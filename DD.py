@@ -8,6 +8,7 @@ import configparser
 import tkinter as tk
 from  tkinter  import ttk
 from datetime import timedelta
+import time
 import datetime as dt
 import sqlite3
 import logging
@@ -24,11 +25,10 @@ from PIL import Image, ImageTk, ImageFilter
 import cv2
 import os
 import zxing
-import time
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as pathches
-from Light_corr_pack.light_correct import creat_cor 
+from Light_corr_pack.light_correct import creat_cor
 from MED.gen_th import MED
 from collections import deque
 from statistics import mean
@@ -36,6 +36,7 @@ import tkinter.font as tkFont
 import zipfile
 import glob
 import shutil
+import time
 
 tab_height = 80
 bar_height = 25
@@ -47,11 +48,11 @@ ONETOMORE = 1
 NOWAIT = 2
 ADMIN = False
 resol = "./1280x720"
-whitephoto = resol+"/"+"white.jpg"
+whitephoto = resol+"/"+"white1.jpg"
 # randomly put
 photoname = resol+"/"+"QRcode.jpg"
 imgdir = "/home/debian/Drug_Detector/data_image_folder/"
-threshold = [[109,0,0,10],[109,0,0,10],[80,0,0,10]]
+threshold = [[0,8,0,71],[0,8,0,71],[0,8,0,71]]
 # get from barcode
 #line_loc_th_0=[116,116+50,168,168+50,215,215+50,300,300+50]
 #line_loc_th_1=[113,113+50,186,186+50,250,250+50,354,354+50]
@@ -88,7 +89,7 @@ class DrugDetectorApp(tk.Tk):
         self.init_time_second()
         self.back_main_frame(WelcomePage)
         self.screensaver = ScreenLock()
-		
+
     def init_fonts(self):
         self.all_fonts = {
                 "中文":{
@@ -109,8 +110,12 @@ class DrugDetectorApp(tk.Tk):
                 }
             }
     def init_devices(self):
+        Camera_path = glob.glob('/dev/vi*') # ('dev/video1')
+        print('Camera_path=', Camera_path)
+        Camera_name = os.path.split(Camera_path[0])[1] # video1
+        Camera_id = int(Camera_name[-1]) # 1 or 0 else
         try:
-            self.camera = VideoCapture(0, 720, 1280)
+            self.camera = VideoCapture(Camera_id, 720, 1280)
         except ValueError:
             logging.error(ValueError)
 
@@ -611,12 +616,14 @@ class LigthtAdjustingPage(tk.Frame):
             img = cv2.flip(img, -1)
             cv2.imwrite(whitephoto, img)
             # whitephoto
+            t1 = time.time()
             cor = creat_cor(whitephoto, x0=170, y0=120)
             # True show image
-            a,b,c=cor.main('false')
-            dif_array = np.array([a,b,c])
+            dif_array = cor.main('false')
+            t2 = time.time()
             np.save('dif_array', dif_array)
             self.temp = 2
+            print('light_correct_time=', t2-t1)
             print("snapshot successful")
             self.master.settingConf.set('LightAdjust', 'adjust_time', str(dt.datetime.now().timestamp()))
             self.master.settingConf.write(open('../share/DD_setting.ini', 'w'))
@@ -1171,8 +1178,7 @@ class ScanCassettePage(tk.Frame):
         self.cameraLabel = tk.Label(self, text=master.conf['testing_page_section']['label_loadPic'], height=15)
         self.cameraLabel.pack(fill='x')
         self.cameraLabel.pack_forget()
-        
-
+    
         tk.Button(self, text=master.conf['main_page_section']['btn_cancel'], font=master.all_fonts[master.Languagevalue.get()]["general"], bg=button_bg, height=2,
                   command=lambda: self.cancel()).pack(padx = 10, pady = 10, fill='both', side=tk.BOTTOM)
         self.capture = tk.Button(self, text=master.conf['testing_page_section']['btn_capture'], font=master.all_fonts[master.Languagevalue.get()]["general"], bg=button_bg, height=2,
@@ -1221,12 +1227,14 @@ class ScanCassettePage(tk.Frame):
             img = cv2.flip(img,-1)
             cv2.imwrite(photoname, img[:,640:,:])
             self.tiltCorrect(photoname, photoname)
-
+            print('photoname=', photoname)
     
             print("write successful")
             reader = zxing.BarCodeReader()
             QRcode = reader.decode(photoname)
-            #QRcode = "MED|drugtype001|20221031|20200823|000000002"
+            #QRcode = "MED|drugtype001|20221031|20200824|000000002"
+            print('QRcode=', QRcode)
+                    
             if QRcode is not None:
                 self.camera.release()
                 self.master.switch_frame(InputPage,0,self.mode,self.rounds, self.inspectorId, self.enterTime, QRcode.raw)
@@ -1236,6 +1244,7 @@ class ScanCassettePage(tk.Frame):
                 self.capture.pack(padx = 10, fill='both', side=tk.BOTTOM)
                 self.update()
         else:
+            print('else')
             self.camera.release()
             self.master.back_main_frame(TestingPage)
     def rotate(self,image,angle,center=None,scale=1.0):
@@ -1249,16 +1258,57 @@ class ScanCassettePage(tk.Frame):
         src = cv2.imread(imgName)
         gray = cv2.imread(imgName,cv2.IMREAD_GRAYSCALE)
         grayNot = cv2.bitwise_not(gray)
+
         threImg = cv2.threshold(grayNot,100,255,cv2.THRESH_BINARY_INV)[1]
-        coords = np.column_stack(np.where(threImg>0))
+        fined_Img= cv2.medianBlur(threImg, 5)
+        coords = np.column_stack(np.where(fined_Img1>0))
+        
+        rect = cv2.minAreaRect(coords)
+        bbox = cv2.boxPoints(rect)
+        cv2.drawContours(src, [bbox.astype(int)],0,(255,0,0),1)
+        cv2.drawContours(fined_Img, [bbox.astype(int)],0,(255,0,0),1)
+        
         angle = cv2.minAreaRect(coords)[-1]
+
+        print('angle=', angle)
         if angle < -45:
             angle = -(angle + 90)
         else:
             angle = -angle
+        print('finish_angle=', angle)
+        
         dst = self.rotate(src,angle)
         cv2.imwrite(saveName, dst)    
-            
+        
+        ro_img = self.rotate(fined_Img, angle)
+        ro_coords = np.column_stack(np.where(ro_img>0))
+        ro_angle = cv2.minAreaRect(ro_coords)[-1]
+        print('ro_angle=', ro_angle)
+
+        """
+        fig, axes = plt.subplots(nrows=3, ncols=3, figsize=(15,20))
+        axes[0][0].imshow(gray, cmap='gray')
+        axes[0][0].set_title('gray')
+        
+        axes[0][1].imshow(grayNot, cmap='gray')
+        axes[0][1].set_title('grayNot')
+
+        axes[0][2].imshow(threImg, cmap='gray')
+        axes[0][2].set_title('threImg')
+
+        axes[1][0].imshow(src)
+        axes[1][0].set_title('src')
+
+        axes[1][1].imshow(fined_Img, cmap='gray')
+        axes[1][1].set_title('fined_Img1')
+        
+        axes[1][2].imshow(ro_img, cmap='gray')
+        axes[][2].set_title('ro_img')
+        plt.tight_layout()
+        plt.show()
+        """
+    
+    
 class InputPage(tk.Frame):
     def __init__(self, master, step, mode, rounds, inspectorId, enterTime, QRcode="",DataObj={} ):
         tk.Frame.__init__(self, master)
@@ -1627,7 +1677,9 @@ class TestingLoadingPage(tk.Frame):
             conn = sqlite3.connect(self.master.conf['default']['config_database'])
             sql = "SELECT * FROM SQLITE_SEQUENCE"
             imgName = imgdir+str(conn.execute(sql).fetchall()[0][1]+1)+"-"+DataObj['id_card']
-            os.mkdir(imgName)
+            if not os.path.exists(imgName):
+               os.mkdir(imgName)
+            cv2.imwrite(imgName+"/original.jpg", img)
             img = cv2.flip(img, -1)
             cv2.imwrite(imgName+"/0_uncorrect.jpg", img)
             conn.close()
@@ -1635,9 +1687,16 @@ class TestingLoadingPage(tk.Frame):
             #time.sleep(5)
             dif_array = np.load('dif_array.npy')
             loc = np.load('line_loc.npy')
-            print(self.QRcodeobj['threshold'])
-            self.res= MED(imgName+"/0.jpg",dif_array,loc,self.QRcodeobj['threshold'], tx0=170, ty0=120).main('false')
-            #self.res= MED(imgName+"/0.jpg",threshold,dif_array,loc_array, tx0=220, ty0=120).main()
+
+            line_loc_range = np.load('line_loc_range.npy')
+            val_line_info = self.QRcodeobj['valid_line_info']
+            val_line_info = [0,1,0,0,1,0,0,1,0]
+            print('self.QR=', self.QRcodeobj)
+            t3 = time.time()
+            self.res = MED(imgName+"/0.jpg", dif_array, loc, line_loc_range, self.QRcodeobj['threshold'], val_line_info).main('true')
+            t4 = time.time()
+            print('PN=', self.res)
+            print('MED_time=', t4-t3)
             print('algorithm finished')
             self.res = self.parse_result(self.QRcodeobj, self.res)
             self.insertData(DataObj, self.res, self.QRcodeobj)
@@ -1659,16 +1718,25 @@ class TestingLoadingPage(tk.Frame):
         threImg = cv2.threshold(grayNot,100,255,cv2.THRESH_BINARY_INV)[1]
         coords = np.column_stack(np.where(threImg>0))
         angle = cv2.minAreaRect(coords)[-1]
+        print('angle=', angle)
+    
         if angle < -45:
             angle = -(angle + 90)
         else:
             angle = -angle
         dst = self.rotate(src,angle)
-        cv2.imwrite(saveName, dst)    
+        print('angle=', angle))
+        cv2.imwrite(saveName, dst)
+
 
     def parseQRcode(self, QRcode):
+        print('parseQRcode================================')
         QRcodeArr = QRcode.split('|')
         threshold_arr, valid_arr, drug_title_arr = self.parse_info(QRcodeArr[1])
+        print('QRcode=', QRcode)
+        print('threshold_arr=', threshold_arr)
+        print('valid_arr=', valid_arr)
+        print('drug_title_arr=', drug_title_arr)
 
         return {
             #'line_loc_th': line_loc_th,
@@ -1686,33 +1754,38 @@ class TestingLoadingPage(tk.Frame):
         }
 
     def parse_info(self, dtype):
-                conn = sqlite3.connect('./DD.db')
-                c = conn.cursor()
-                sql = "select T1_A, T2_A, T3_A, T1_B, T2_B, T3_B, T1_C, T2_C, T3_C from cape where type=?"
-                all_drugs = c.execute(sql, (dtype,)).fetchone()
-                threshold_arr = []
-                valid_arr = []
-                drug_title_arr = []
-                for i, drug in enumerate(all_drugs):
-                    if i % 3==0:
-                        test_arr = []
-                    if drug !="NA":
-                        sql ="select * from drug where name=?"
-                        thresholds = c.execute(sql, (drug,)).fetchone()
-                        test_arr.append(thresholds[2])
-                        valid_arr.append(1)
-                    else:
-                        test_arr.append(0)
-                        valid_arr.append(0)
-                    drug_title_arr.append(drug)
+        conn = sqlite3.connect('./DD.db')
+        c = conn.cursor()
+        sql = "select T1_A, T2_A, T3_A, T1_B, T2_B, T3_B, T1_C, T2_C, T3_C from cape where type=?"
+        all_drugs = c.execute(sql, (dtype,)).fetchone()
+        threshold_arr = []
+        valid_arr = []
+        drug_title_arr = []
+        print('all_drugs=', all_drugs)
 
-                    if i % 3==2:
-                        # TODO: C line
-                        test_arr.append(10)
-                        threshold_arr.append(test_arr)
-                conn.close()
+        for i, drug in enumerate(all_drugs):
+            print('i=', i)
+            print('drug=', drug)
+            if i % 3==0:
+                test_arr = []
+            if drug !="NA":
+                sql ="select * from drug where name=?"
+                thresholds = c.execute(sql, (drug,)).fetchone()
+                print('thresholds=', thresholds)
+                test_arr.append(thresholds[2])
+                valid_arr.append(1)
+            else:
+                test_arr.append(0)
+                valid_arr.append(0)
+            drug_title_arr.append(drug)
 
-                return threshold_arr, valid_arr, drug_title_arr
+            if i % 3==2:
+                # TODO: C line
+                test_arr.append(10)
+                threshold_arr.append(test_arr)
+        conn.close()
+        return threshold_arr, valid_arr, drug_title_arr
+    
     def parse_line_loc_info(self, line_loc_info):
         return [
             self.parse_line_loc_row(line_loc_info[1:5], int(line_loc_info[0])),

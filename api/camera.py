@@ -10,6 +10,7 @@ class VideoCapture:
         self.q = queue.Queue() #佇列 (First In First Out) 是線程間最常用的交換數據的形式。
         try:
             self.cap = cv2.VideoCapture(name)
+            self.cap.set(cv2.CAP_PROP_FPS, 5)
             self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M','J','P','G')) # 4個字符表示的視頻的編碼器格式
             self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75) # 0.75 表示“自動曝光，自動光圈”（Auto to Manual）
             self.setWidth(width)
@@ -41,7 +42,7 @@ class VideoCapture:
             
         time.sleep(3) # 執行調自動接著調手動  他就會發生錯誤  但加個時間delay就不會了
         self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25) # 0.25表示“手動曝光，手動光圈”（Auto to Manual），然後cv2.CAP_PROP_EXPOSURE才能正常使用
-        self.cap.set(cv2.CAP_PROP_EXPOSURE, 0.008) # 設置曝光絕對值
+        self.cap.set(cv2.CAP_PROP_EXPOSURE, 0.0035) # 設置曝光絕對值
         self.t2 = threading.Thread(target = self.LED0.LED_blink)
         self.t2.start()
         self.t1 = threading.Thread(target = self._reader)
