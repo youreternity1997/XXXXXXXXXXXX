@@ -52,7 +52,7 @@ whitephoto = resol+"/"+"white1.jpg"
 # randomly put
 photoname = resol+"/"+"QRcode.jpg"
 imgdir = "/home/debian/Drug_Detector/data_image_folder/"
-threshold = [[0,8,0,71],[0,8,0,71],[0,8,0,71]]
+threshold = [[0,8,0,10],[0,8,0,10],[0,8,0,10]]
 # get from barcode
 #line_loc_th_0=[116,116+50,168,168+50,215,215+50,300,300+50]
 #line_loc_th_1=[113,113+50,186,186+50,250,250+50,354,354+50]
@@ -391,32 +391,48 @@ class BarPage(tk.Frame):
         self.powerlabel = tk.Label(self, image=master.images['power100'], bg=button_bg)
         self.powerlabel.pack(side="right", fill="x", padx=10)
         self.timelabel = tk.Label(self, textvariable=self.time, bg=button_bg, font=master.all_fonts[master.Languagevalue.get()]['bar_label']).pack(side="right", fill="x")
-
+        self.toggleBtn = tk.Button(self, text=master.conf['bar_page_section']['btn_dayandnight'], font=master.all_fonts[master.Languagevalue.get()]['bar_label'], relief="raised", command=self.toggle)
+        self.toggleBtn.pack()
         self.update_clock()
         self.t1 = threading.Thread(target = lambda: self.init_detect_battery())
         self.t1.daemon = True
         self.t1.start()
 
+    def toggle(self):
+        if self.toggleBtn.config('relief')[-1] == 'sunken':
+            self.toggleBtn.config(relief="raised")
+        else:
+            self.toggleBtn.config(relief="sunken")
+
     def init_detect_battery(self):
         window = deque(maxlen=1)
         detector = Detect_Battery()
+        alert = False
         while 1:
             conn, volt = detector.detect()
             window.append(volt)
             voltage = mean(window)
             if conn == 0:
+                alert = False
                 self.powerlabel.configure(image=self.master.images['charging'])
                 self.powerlabel.image = self.master.images['charging']
             elif voltage > 1.68:
+                alert = False
                 self.powerlabel.configure(image=self.master.images['power100'])
                 self.powerlabel.image = self.master.images['power100']
             elif voltage > 1.58:
+                alert = False
                 self.powerlabel.configure(image=self.master.images['power75'])
                 self.powerlabel.image = self.master.images['power75']
             elif voltage > 1.48:
+                alert = False
                 self.powerlabel.configure(image=self.master.images['power50'])
                 self.powerlabel.image = self.master.images['power50']
             elif voltage > 1.4:
+                if alert == False:
+                    tk.messagebox.showinfo(self.master.conf['bar_page_section']['label_lowBatteryTitle'], self.master.conf['bar_page_section']['label_lowBattery'])
+                    alert = True
+                
                 self.powerlabel.configure(image=self.master.images['power25'])
                 self.powerlabel.image = self.master.images['power25']
             elif voltage <= 1.4:
@@ -1185,7 +1201,7 @@ class ScanCassettePage(tk.Frame):
                   command=lambda: self.recapture())
         self.capture.pack(padx = 10, fill='both', side=tk.BOTTOM)
         self.capture.pack_forget()
-        self.after(1000, lambda: self.recapture())
+        self.after(2000, lambda: self.recapture())
 
     def cancel(self):
         self.camera.release()
@@ -1225,13 +1241,14 @@ class ScanCassettePage(tk.Frame):
     
             print("capture successful")
             img = cv2.flip(img,-1)
-            cv2.imwrite(photoname, img[:,640:,:])
+            cv2.imwrite(photoname, img[:,640:-85,:])
             self.tiltCorrect(photoname, photoname)
             print('photoname=', photoname)
     
             print("write successful")
             reader = zxing.BarCodeReader()
             QRcode = reader.decode(photoname)
+            
             #QRcode = "MED|drugtype001|20221031|20200824|000000002"
             print('QRcode=', QRcode)
                     
@@ -1260,13 +1277,15 @@ class ScanCassettePage(tk.Frame):
         grayNot = cv2.bitwise_not(gray)
 
         threImg = cv2.threshold(grayNot,100,255,cv2.THRESH_BINARY_INV)[1]
-        fined_Img= cv2.medianBlur(threImg, 5)
-        coords = np.column_stack(np.where(fined_Img1>0))
-        
+        fined_Img= cv2.blur(threImg, (5,5))
+        coords = np.column_stack(np.where(fined_Img==255))
+        coords = np.flip(coords, axis=1)
+        print('coords=', coords)
+
         rect = cv2.minAreaRect(coords)
         bbox = cv2.boxPoints(rect)
-        cv2.drawContours(src, [bbox.astype(int)],0,(255,0,0),1)
-        cv2.drawContours(fined_Img, [bbox.astype(int)],0,(255,0,0),1)
+        cv2.drawContours(src, [bbox.astype(int)],0,(255,0,0),2)
+        cv2.drawContours(fined_Img, [bbox.astype(int)],0,(255,0,0),2)
         
         angle = cv2.minAreaRect(coords)[-1]
 
@@ -1285,8 +1304,9 @@ class ScanCassettePage(tk.Frame):
         ro_angle = cv2.minAreaRect(ro_coords)[-1]
         print('ro_angle=', ro_angle)
 
+
         """
-        fig, axes = plt.subplots(nrows=3, ncols=3, figsize=(15,20))
+        fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(15,20))
         axes[0][0].imshow(gray, cmap='gray')
         axes[0][0].set_title('gray')
         
@@ -1298,12 +1318,9 @@ class ScanCassettePage(tk.Frame):
 
         axes[1][0].imshow(src)
         axes[1][0].set_title('src')
-
-        axes[1][1].imshow(fined_Img, cmap='gray')
-        axes[1][1].set_title('fined_Img1')
         
-        axes[1][2].imshow(ro_img, cmap='gray')
-        axes[][2].set_title('ro_img')
+        axes[1][1].imshow(ro_img, cmap='gray')
+        axes[1][1].set_title('ro_img')
         plt.tight_layout()
         plt.show()
         """
@@ -1690,10 +1707,11 @@ class TestingLoadingPage(tk.Frame):
 
             line_loc_range = np.load('line_loc_range.npy')
             val_line_info = self.QRcodeobj['valid_line_info']
+            
             val_line_info = [0,1,0,0,1,0,0,1,0]
             print('self.QR=', self.QRcodeobj)
             t3 = time.time()
-            self.res = MED(imgName+"/0.jpg", dif_array, loc, line_loc_range, self.QRcodeobj['threshold'], val_line_info).main('true')
+            self.res = MED(imgName+"/0.jpg", dif_array, loc, line_loc_range, self.QRcodeobj['threshold'], val_line_info).main('false')
             t4 = time.time()
             print('PN=', self.res)
             print('MED_time=', t4-t3)
@@ -1725,7 +1743,7 @@ class TestingLoadingPage(tk.Frame):
         else:
             angle = -angle
         dst = self.rotate(src,angle)
-        print('angle=', angle))
+        print('angle=', angle)
         cv2.imwrite(saveName, dst)
 
 

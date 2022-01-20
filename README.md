@@ -6,7 +6,7 @@
 
 
 
-=======================================================================================
+===========================================================================
 1.~~ : 聖鋒工程師所撰寫部分。
 
 2.1.0_20210630 : 
@@ -22,12 +22,12 @@
 2.2.0_20211029 : 
     1. 在DD.py中新增自動抓取相機ID(camera_id)(line:113~118)
     2. 固定式改成自動式抓取試紙與線段(creat_cor、MED)(line:619~623、1696) : 修改cor.main()和MED()，用scipy抓取區域    最小值、區域最大值當作線段邊界，改成全自動分類線段
-    2. 對旋轉校正的QRcode影像除雜訊(line:1263~1331) : 降躁讓影像旋轉校正更正確
-    3. 解決身分證資料夾重複(line:1680~1681)
-    4. api/camera.py修改: .set(cv2.CAP_PROP_FPS, 5)，FPS降低成5fps(原本為30fps)
-    5. api/camera.py修改: .set(cv2.CAP_PROP_EXPOSURE, 0.0035)，0.05變成0.0035
-    6. JimmyTest/camera.py修改: .set(cv2.CAP_PROP_FPS, 5)，FPS降低成5fps(原本為30fps)
-    7. 在DD.py中新增自動抓取相機ID(camera_id)(line:113~118)
+    3. 對旋轉校正的QRcode影像除雜訊(line:1263~1331) : 降躁讓影像旋轉校正更正確
+    4. 解決身分證資料夾重複(line:1680~1681)
+    5. api/camera.py修改: .set(cv2.CAP_PROP_FPS, 5)，FPS降低成5fps(原本為30fps)
+    6. api/camera.py修改: .set(cv2.CAP_PROP_EXPOSURE, 0.0035)，0.05變成0.0035
+    7. JimmyTest/camera.py修改: .set(cv2.CAP_PROP_FPS, 5)，FPS降低成5fps(原本為30fps)
+
 
 
 
